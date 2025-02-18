@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 import mustache from "mustache";
-import { MongoClient } from "mongodb";
-import { ObjectId } from "mongodb";
+import { MongoClient, ObjectId } from "mongodb";
 
 // MongoDB connection URI and database
 const mongoUrl: string = process.env.MONGO_URI || "";
@@ -13,21 +12,45 @@ type DataType = {
   formData: Record<string, any>;
 };
 
+// Utility function to parse the request body correctly
+async function parseRequestBody(req: Request): Promise<DataType | null> {
+  const contentType = req.headers.get("content-type");
+
+  if (contentType?.includes("application/json")) {
+    return await req.json(); // Directly parse JSON
+  }
+
+  if (contentType?.includes("application/x-www-form-urlencoded")) {
+    const formData = await req.formData();
+    const jsonObject: Record<string, any> = Object.fromEntries(
+      formData.entries()
+    );
+
+    return {
+      formName: jsonObject.formName || "",
+      formData: jsonObject,
+    };
+  }
+
+  return null; // Unsupported content type
+}
+
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ siteId: string }> }
 ) {
   try {
-    const body: DataType = await req.json();
-    const { formName, formData } = body;
     const siteId = (await params).siteId;
+    const body = await parseRequestBody(req);
 
-    if (!formName || !formData || !siteId) {
+    if (!body || !body.formName || !body.formData || !siteId) {
       return NextResponse.json(
         { message: "formName, formData, and siteId are required" },
         { status: 400 }
       );
     }
+
+    const { formName, formData } = body;
 
     // Connect to MongoDB and fetch site-specific config
     await client.connect();
@@ -67,7 +90,7 @@ export async function POST(
       htmlContent,
     });
 
-    // Setup Nodemailer transporter with Gmail OAuth2 (optional)
+    // Setup Nodemailer transporter
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
