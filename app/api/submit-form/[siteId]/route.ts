@@ -92,9 +92,12 @@ export async function POST(
 
     // CORS setup to only allow requests from siteDomain
     const origin = req.headers.get("origin");
+
     if (origin && origin !== siteDomain) {
       return NextResponse.json(
-        { message: "Forbidden: Invalid origin" },
+        {
+          message: `Forbidden: Invalid origin  -----orgin=[${origin}-----siteDomain=[${siteDomain}]]`,
+        },
         { status: 403 }
       );
     }
