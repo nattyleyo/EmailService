@@ -101,7 +101,7 @@ export async function POST(
 
     // Add CORS headers for the allowed origin
     const headers = new Headers();
-    headers.set("Access-Control-Allow-Origin", siteDomain); // Only allow the specific siteDomain
+    headers.set("Access-Control-Allow-Origin", "*"); // Only allow the specific siteDomain
     headers.set("Access-Control-Allow-Methods", "POST");
     headers.set("Access-Control-Allow-Headers", "Content-Type");
 
