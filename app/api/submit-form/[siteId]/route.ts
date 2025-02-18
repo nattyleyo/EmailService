@@ -96,7 +96,7 @@ export async function POST(
     if (origin && origin !== siteDomain) {
       return NextResponse.json(
         {
-          message: `Forbidden: Invalid origin  -----orgin= ${origin} `,
+          message: `Forbidden: Invalid origin `,
         },
         { status: 403 }
       );
