@@ -52,10 +52,10 @@ export async function POST(
     const { formName, formData } = body;
     const siteId = (await params).siteId;
 
-    console.log("iddd", siteId);
-    console.log("formName", formName);
-    console.log("formData", formData);
-    console.log("formData-name", formData.name);
+    // console.log("iddd", siteId);
+    // console.log("formName", formName);
+    // console.log("formData", formData);
+    // console.log("formData-name", formData.name);
 
     if (!formName || !formData || !siteId) {
       return NextResponse.json(
@@ -81,8 +81,29 @@ export async function POST(
       );
     }
 
-    const { siteName, teamEmail, appEmail, appPass, emailTemplate } =
-      siteConfig;
+    const {
+      siteName,
+      siteDomain,
+      teamEmail,
+      appEmail,
+      appPass,
+      emailTemplate,
+    } = siteConfig;
+
+    // CORS setup to only allow requests from siteDomain
+    const origin = req.headers.get("origin");
+    if (origin && origin !== siteDomain) {
+      return NextResponse.json(
+        { message: "Forbidden: Invalid origin" },
+        { status: 403 }
+      );
+    }
+
+    // Add CORS headers for the allowed origin
+    const headers = new Headers();
+    headers.set("Access-Control-Allow-Origin", siteDomain); // Only allow the specific siteDomain
+    headers.set("Access-Control-Allow-Methods", "POST");
+    headers.set("Access-Control-Allow-Headers", "Content-Type");
 
     // Generate HTML content from formData
     let htmlContent = Object.entries(formData)
@@ -120,14 +141,14 @@ export async function POST(
     };
 
     // Send email
-    // await transporter.sendMail(mailOptions);
+    await transporter.sendMail(mailOptions);
 
-    return NextResponse.json(
-      {
+    return new NextResponse(
+      JSON.stringify({
         message: "Form submitted successfully, email sent to team",
         data: formData,
-      },
-      { status: 200 }
+      }),
+      { status: 200, headers }
     );
   } catch (error) {
     console.error("Error:", error);
