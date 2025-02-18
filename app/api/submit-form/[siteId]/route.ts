@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 import mustache from "mustache";
-import { MongoClient, ObjectId } from "mongodb";
+import { MongoClient } from "mongodb";
+import { ObjectId } from "mongodb";
 
 // MongoDB connection URI and database
 const mongoUrl: string = process.env.MONGO_URI || "";
@@ -12,27 +13,27 @@ type DataType = {
   formData: Record<string, any>;
 };
 
-// Utility function to parse the request body correctly
+// Function to parse form data based on content type
 async function parseRequestBody(req: Request): Promise<DataType | null> {
-  const contentType = req.headers.get("content-type");
+  const contentType = req.headers.get("content-type") || "";
 
-  if (contentType?.includes("application/json")) {
-    return await req.json(); // Directly parse JSON
-  }
-
-  if (contentType?.includes("application/x-www-form-urlencoded")) {
+  if (contentType.includes("application/json")) {
+    return await req.json();
+  } else if (contentType.includes("application/x-www-form-urlencoded")) {
     const formData = await req.formData();
-    const jsonObject: Record<string, any> = Object.fromEntries(
-      formData.entries()
-    );
+    const obj: Record<string, any> = {};
+
+    formData.forEach((value, key) => {
+      obj[key] = value;
+    });
 
     return {
-      formName: jsonObject.formName || "",
-      formData: jsonObject,
+      formName: obj.formName || "",
+      formData: obj.formData ? JSON.parse(obj.formData) : {},
     };
   }
 
-  return null; // Unsupported content type
+  return null;
 }
 
 export async function POST(
@@ -40,17 +41,28 @@ export async function POST(
   { params }: { params: Promise<{ siteId: string }> }
 ) {
   try {
-    const siteId = (await params).siteId;
-    const body = await parseRequestBody(req);
-
-    if (!body || !body.formName || !body.formData || !siteId) {
+    const body: DataType | null = await parseRequestBody(req);
+    if (!body) {
       return NextResponse.json(
-        { message: "formName, formData, and siteId are required" },
+        { message: "Unsupported content type" },
         { status: 400 }
       );
     }
 
     const { formName, formData } = body;
+    const siteId = (await params).siteId;
+
+    // console.log("iddd", siteId);
+    // console.log("formName", formName);
+    // console.log("formData", formData);
+    // console.log("formData-name", formData.name);
+
+    if (!formName || !formData || !siteId) {
+      return NextResponse.json(
+        { message: "formName, formData, and siteId are required" },
+        { status: 400 }
+      );
+    }
 
     // Connect to MongoDB and fetch site-specific config
     await client.connect();
@@ -90,7 +102,7 @@ export async function POST(
       htmlContent,
     });
 
-    // Setup Nodemailer transporter
+    // Setup Nodemailer transporter with Gmail OAuth2 (optional)
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
@@ -108,7 +120,7 @@ export async function POST(
     };
 
     // Send email
-    await transporter.sendMail(mailOptions);
+    // await transporter.sendMail(mailOptions);
 
     return NextResponse.json(
       {
