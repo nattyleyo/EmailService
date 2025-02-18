@@ -52,10 +52,10 @@ export async function POST(
     const { formName, formData } = body;
     const siteId = (await params).siteId;
 
-    // console.log("iddd", siteId);
-    // console.log("formName", formName);
-    // console.log("formData", formData);
-    // console.log("formData-name", formData.name);
+    console.log("iddd", siteId);
+    console.log("formName", formName);
+    console.log("formData", formData);
+    console.log("formData-name", formData.name);
 
     if (!formName || !formData || !siteId) {
       return NextResponse.json(
