@@ -1,8 +1,15 @@
 import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 import mustache from "mustache";
+import { MongoClient } from "mongodb";
+import { ObjectId } from "mongodb";
+
+// MongoDB connection URI and database
+const mongoUrl: string = process.env.MONGO_URI || "";
+const client = new MongoClient(mongoUrl);
 
 type DataType = {
+  siteId: string;
   formName: string;
   formData: Record<string, any>;
 };
@@ -10,21 +17,34 @@ type DataType = {
 export async function POST(req: Request) {
   try {
     const body: DataType = await req.json();
-    const { formName, formData } = body;
+    const { siteId, formName, formData } = body;
 
-    if (!formName || !formData) {
+    if (!formName || !formData || !siteId) {
       return NextResponse.json(
-        { message: "formName and formData are required" },
+        { message: "formName, formData, and siteId are required" },
         { status: 400 }
       );
     }
 
-    // Load environment variables
-    const siteName = process.env.SITE_NAME || "";
-    const teamEmail = process.env.TEAM_EMAIL || "";
-    const appEmail = process.env.APP_EMAIL || "";
-    const appPass = process.env.APP_PASS || "";
-    const emailTemplate = process.env.EMAIL_TEMPLATE || "";
+    // Connect to MongoDB and fetch site-specific config
+    await client.connect();
+    const database = client.db("siteConfig");
+    const sitesCollection = database.collection("sites");
+
+    // Fetch site-specific config from MongoDB
+    const siteConfig = await sitesCollection.findOne({
+      _id: new ObjectId(siteId),
+    });
+
+    if (!siteConfig) {
+      return NextResponse.json(
+        { message: "Site configuration not found" },
+        { status: 404 }
+      );
+    }
+
+    const { siteName, teamEmail, appEmail, appPass, emailTemplate } =
+      siteConfig;
 
     // Generate HTML content from formData
     let htmlContent = Object.entries(formData)
@@ -44,7 +64,7 @@ export async function POST(req: Request) {
       htmlContent,
     });
 
-    // Setup Nodemailer transporter
+    // Setup Nodemailer transporter with Gmail OAuth2 (optional)
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
@@ -77,5 +97,7 @@ export async function POST(req: Request) {
       { message: "Internal Server Error" },
       { status: 500 }
     );
+  } finally {
+    await client.close();
   }
 }
